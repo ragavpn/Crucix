@@ -288,6 +288,39 @@ app.get('/api/locales', (req, res) => {
   });
 });
 
+// === Aegis API Endpoints ===
+const aegisAuth = (req, res, next) => {
+  const secret = req.headers['x-aegis-secret'];
+  const expectedSecret = process.env.AEGIS_SECRET;
+  
+  if (!expectedSecret) {
+    return res.status(500).json({ error: 'AEGIS_SECRET not configured on Crucix' });
+  }
+  if (!secret || secret !== expectedSecret) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid X-Aegis-Secret' });
+  }
+  next();
+};
+
+app.get('/api/aegis/latest', aegisAuth, (req, res) => {
+  if (!currentData) return res.status(503).json({ error: 'No data yet' });
+  res.json(currentData);
+});
+
+app.get('/api/aegis/health', aegisAuth, (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: Math.floor((Date.now() - startTime) / 1000),
+    lastSweep: lastSweepTime,
+    sweepInProgress
+  });
+});
+
+app.get('/api/aegis/delta', aegisAuth, (req, res) => {
+  const delta = memory.getLastDelta();
+  res.json({ delta: delta || null });
+});
+
 // SSE: live updates
 app.get('/events', (req, res) => {
   res.writeHead(200, {
